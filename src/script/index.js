@@ -1,4 +1,5 @@
 import "../scss/style.scss";
+console.log("Hello webpack!");
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -13,23 +14,110 @@ const stats = Stats()
 document.body.appendChild(stats.dom)
 
 var group = new THREE.Group();
-var colors = [0xffffff, 0xff0000, 0x00ff00, 0xffff00, 0x0000ff];
+var colors = [0x0000ff, 0xff0000, 0x00ff00, 0xffffff];
 
-let drawPyramid = (base_size, pow) => {
-    let level = pow;
-    let total_level = pow;
+let drawPyramid = () => {
+    let level = 3;
     let height = 100;
     let distance = 60;
-    let base = base_size;
+    let base  = 16;
+
+    var texture = new THREE.TextureLoader().load( 'src/images/crate.gif' );
+	var geometry = new THREE.BoxBufferGeometry( 20, 20, 20 );
+	var material = new THREE.MeshBasicMaterial( { map: texture } );
+
+
+    let memory = {}
+
+    var last_node = 0
+    for (let step = 0; step < level; step++) {
+        console.log("step", step);
+        var line_material = new THREE.LineBasicMaterial( { color: colors[step] } );
+        if (step ==  0 && last_node == 0){
+            let cube = new THREE.Mesh(geometry, material);
+            let position = new THREE.Vector3(0, (level-(step+1)) * height, 0);
+            cube.position.copy(position);
+            last_node = 1;
+            group.add(cube);
+            memory[step] = [position];
+            distance = distance / 2;
+        }else {
+            let node_count = last_node * 4;
+            distance = (distance) * 2;
+            memory[step] = [];
+            for (let i = 0; i < memory[step-1].length; i++) {
+                let position1 = new THREE.Vector3(memory[step-1][i].x, (level-(step+1)) * height, memory[step-1][i].z + distance);
+                let position2 = new THREE.Vector3(memory[step-1][i].x + distance, (level-(step+1)) * height, memory[step-1][i].z);
+                let position3 = new THREE.Vector3(memory[step-1][i].x, (level-(step+1)) * height, memory[step-1][i].z - distance);
+                let position4 = new THREE.Vector3(memory[step-1][i].x - distance, (level-(step+1)) * height, memory[step-1][i].z);
+                let cube1 = new THREE.Mesh(geometry, material);
+                cube1.position.copy(position1);
+                group.add(cube1);
+                let cube2 = new THREE.Mesh(geometry, material);
+                cube2.position.copy(position2);
+                group.add(cube2);
+                let cube3 = new THREE.Mesh(geometry, material);
+                cube3.position.copy(position3);
+                group.add(cube3);
+                let cube4 = new THREE.Mesh(geometry, material);
+                cube4.position.copy(position4);
+                group.add(cube4);
+
+
+                var positions = [position1, position2, position3, position4];
+                memory[step] = memory[step].concat(positions);
+            }
+            for (let i = 0; i < memory[step-1].length; i++) {
+
+                var line_geometry1 = new THREE.BufferGeometry().setFromPoints([ memory[step-1][i], position1 ]);
+                var line1 = new THREE.Line( line_geometry1, line_material );
+                group.add(line1);
+                var line_geometry2 = new THREE.BufferGeometry().setFromPoints([ memory[step-1][i], position2 ]);
+                var line2 = new THREE.Line( line_geometry2, line_material );
+                group.add(line2);
+                var line_geometry3 = new THREE.BufferGeometry().setFromPoints([ memory[step-1][i], position3 ]);
+                var line3 = new THREE.Line( line_geometry3, line_material );
+                group.add(line3);
+                var line_geometry4 = new THREE.BufferGeometry().setFromPoints([ memory[step-1][i], position4 ]);
+                var line4 = new THREE.Line( line_geometry4, line_material );
+                group.add(line4);
+
+                var line_geometry11 = new THREE.BufferGeometry().setFromPoints([ position1, position2 ]);
+                var line11 = new THREE.Line( line_geometry11, line_material );
+                group.add(line11);
+                var line_geometry12 = new THREE.BufferGeometry().setFromPoints([ position2, position3 ]);
+                var line12 = new THREE.Line( line_geometry12, line_material );
+                group.add(line12);
+                var line_geometry13 = new THREE.BufferGeometry().setFromPoints([ position3, position4 ]);
+                var line13 = new THREE.Line( line_geometry13, line_material );
+                group.add(line13);
+                var line_geometry14 = new THREE.BufferGeometry().setFromPoints([ position4, position1 ]);
+                var line14 = new THREE.Line( line_geometry14, line_material );
+                group.add(line14);
+
+            }
+            last_node = node_count;
+        }
+    }
+    console.log(memory);
+}
+
+let drawPyramidNew = () => {
+    let level = 4;
+    let total_level = 4;
+    let height = 100;
+    let distance = 60;
+    let base  = 64;
 
     var geometry = new THREE.SphereBufferGeometry( 5, 32, 32 );
-    var material = new THREE.MeshBasicMaterial( {color: 0xffffff} );
+    var material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
 
 
     let memory = {}
     let xstart = 0, zstart = 0;
     while (level > 0) {
         let base_row = Math.sqrt(base);
+        // console.log("base_row", base_row);
         memory[level] = []
         for (let z = 0; z < base_row; z++) {
             for (let x = 0; x < base_row; x++) {
@@ -40,8 +128,9 @@ let drawPyramid = (base_size, pow) => {
         }
         // rearrange points
         // center point to shift
-        xstart = xstart + (30 * (level))-30;
-        zstart = zstart + (30 * (level))-30;
+        xstart = xstart + 30;
+        zstart = zstart + 30;
+        // console.log("mem", memory, memory);
         level = level-1;
         base = base/4;
     }
@@ -50,8 +139,8 @@ let drawPyramid = (base_size, pow) => {
     // connect lines and rearrange points
     let cube1 = new THREE.Mesh(geometry, material);
     cube1.position.copy(memory[1][0]);
+    console.log(memory);
     group.add(cube1);
-
     let lev = 1;
     while (lev < total_level) {
         var line_material = new THREE.LineBasicMaterial( { color: colors[lev] } );
@@ -65,10 +154,13 @@ let drawPyramid = (base_size, pow) => {
         for (let i = 0; i < base_row ; i++) {
             let point_index = 0
             let pos = [];
+            // console.log("break");
             for (let j = 0; j < base_row ; j++) {
+                // console.log("position", i , point_index+i,  memory[lev+1][point_index+i]);
                 pos.push(memory[lev+1][point_index+i]);
                 point_index  = point_index + base_row;
             }
+            // console.log("pos", pos);
             var line_geometry11 = new THREE.BufferGeometry().setFromPoints(pos);
             var line11 = new THREE.Line( line_geometry11, line_material );
             group.add(line11);
@@ -85,6 +177,7 @@ let drawPyramid = (base_size, pow) => {
             var line11 = new THREE.Line( line_geometry11, line_material );
             group.add(line11);
         }
+        console.log("------------");
 
         for (let i = 0; i < memory[lev+1].length / 4; i++) {
             let position1 = memory[lev+1][slow];
@@ -92,7 +185,7 @@ let drawPyramid = (base_size, pow) => {
             let position3 = memory[lev+1][fast + base_row];
             let position4 = memory[lev+1][fast];
 
-            // console.log("pos", slow+1, fast+1, slow+base_row+1, fast+base_row+1);
+            console.log("pos", slow+1, fast+1, slow+base_row+1, fast+base_row+1);
 
             let cube1 = new THREE.Mesh(geometry, material );
             cube1.position.copy(position1);
@@ -124,7 +217,9 @@ let drawPyramid = (base_size, pow) => {
             group.add(line4);
 
             reset_count = reset_count + 1;
+            //reset slow fast after every current / 2
             if (Math.sqrt(memory[lev].length) == reset_count){
+                console.log("reset", (memory[lev].length), Math.sqrt(memory[lev].length), reset_count);
                 slow = last_slow + (Math.sqrt(memory[lev+1].length) * 2);
                 fast = slow + 1;
                 last_slow = slow;
@@ -137,21 +232,26 @@ let drawPyramid = (base_size, pow) => {
         }
         lev = lev + 1;
     }
-    new THREE.Box3().setFromObject( group ).getCenter( group.position ).multiplyScalar( - 1 );
-    scene.add(group);
+
 }
 
 init();
+// scene.add(group);
+drawPyramidNew();
 animate();
 
 
 function init() {
-    scene = new THREE.Scene();
 
-	camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 5000 );
-	// camera.position.z = 800;
-    camera.position.set(487.1742857817705, 400.75708837286686, 491.9908244997268);
+	camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 1000 );
+	camera.position.z = 400;
 
+	scene = new THREE.Scene();
+
+
+
+	// mesh = new THREE.Mesh( geometry, material );
+	// scene.add( group );
 
 	// renderer = new THREE.WebGLRenderer( { antialias: false } );
 	// renderer.setPixelRatio( window.devicePixelRatio );
@@ -169,32 +269,27 @@ function init() {
 	window.addEventListener( 'resize', onWindowResize, false );
 
     const gui = new GUI()
+    // const cubeFolder = gui.addFolder("Cube")
+    // cubeFolder.add(cube.rotation, "x", 0, Math.PI * 2, 0.01)
+    // cubeFolder.add(cube.rotation, "y", 0, Math.PI * 2, 0.01)
+    // cubeFolder.add(cube.rotation, "z", 0, Math.PI * 2, 0.01)
+    // cubeFolder.open()
+    const cameraFolder = gui.addFolder("Camera")
+    cameraFolder.add(camera.position, "z", 0, 10, 0.01)
+    cameraFolder.open()
+
     const params = {
-        "Base size": 16,
-        "antialiasing": false
+        "Base size": 64
     }
-    let prev_val = 16;
-    let controller = gui.add(params,'Base size').name('Base size');
-    controller.onChange(function (value) {
+    gui.add(params, "Base size").onFinishChange(function (value) {
         //validate power of 4
-        let pow = getBaseLog(4, value);
-        if (Number.isInteger(pow) && value != prev_val) {
-            scene.remove(group);
-            group = new THREE.Group();
-            drawPyramid(value, pow + 1);
-            prev_val = value;
+        if (Number.isInteger(getBaseLog(4, value))) {
+
         }else{
-            console.log("Not a valid base size");
-            controller.setValue(prev_val);
+            alert("Not a valid base size")
         }
     });
 
-    // let hideBarsController = gui.add(params,'antialiasing').name('antialiasing').listen();
-    // hideBarsController.onChange(function(newValue) {
-    //     renderer.antialias = newValue;
-    // });
-
-    drawPyramid(16, 3);
 }
 
 function getBaseLog(x, y) {
@@ -212,5 +307,5 @@ function animate() {
 	requestAnimationFrame( animate );
 	renderer.render( scene, camera );
     controls.update();
-    stats.update();
+    stats.update()
 }
